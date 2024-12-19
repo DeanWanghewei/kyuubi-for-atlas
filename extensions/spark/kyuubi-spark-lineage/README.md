@@ -24,9 +24,10 @@
 - [x] SQL lineage parsing will be triggered after SQL execution and will be written to the json logger file
 
 ## Build
+javaVersion: jdk8
 
 ```shell
-build/mvn clean package -DskipTests -pl :kyuubi-spark-lineage_2.12 -am -Dspark.version=3.2.1
+mvn clean package -DskipTests -pl :kyuubi-spark-lineage_2.12 -am -Dspark.version=3.2.0
 ```
 
 ### Supported Apache Spark Versions

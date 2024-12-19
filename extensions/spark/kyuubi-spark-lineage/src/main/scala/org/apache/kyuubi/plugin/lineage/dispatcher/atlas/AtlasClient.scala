@@ -20,6 +20,7 @@ package org.apache.kyuubi.plugin.lineage.dispatcher.atlas
 import java.util.Locale
 
 import com.google.common.annotations.VisibleForTesting
+import com.google.gson.Gson
 import org.apache.atlas.AtlasClientV2
 import org.apache.atlas.model.instance.AtlasEntity
 import org.apache.atlas.model.instance.AtlasEntity.AtlasEntitiesWithExtInfo
@@ -27,6 +28,7 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.util.ShutdownHookManager
 
 import org.apache.kyuubi.plugin.lineage.dispatcher.atlas.AtlasClientConf._
+
 
 trait AtlasClient extends AutoCloseable {
   def send(entities: Seq[AtlasEntity]): Unit
@@ -58,6 +60,21 @@ class AtlasRestClient(conf: AtlasClientConf) extends AtlasClient {
   }
 }
 
+class ConsoleAtlasClient() extends AtlasClient {
+
+  override def send(entities: Seq[AtlasEntity]): Unit = {
+    print("Atlas lineage events: \n")
+    entities.foreach(item => {
+      print(new Gson().toJson(item))
+      print()
+    })
+  }
+
+  override def close(): Unit = {
+
+  }
+}
+
 object AtlasClient {
 
   @volatile private var client: AtlasClient = _
@@ -69,6 +86,7 @@ object AtlasClient {
           val clientConf = AtlasClientConf.getConf()
           client = clientConf.get(CLIENT_TYPE).toLowerCase(Locale.ROOT) match {
             case "rest" => new AtlasRestClient(clientConf)
+            case "console" => new ConsoleAtlasClient()
             case unknown => throw new RuntimeException(s"Unsupported client type: $unknown.")
           }
           registerCleanupShutdownHook(client)
