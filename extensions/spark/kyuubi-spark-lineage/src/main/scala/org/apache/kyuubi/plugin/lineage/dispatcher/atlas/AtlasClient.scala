@@ -21,11 +21,17 @@ import java.util.Locale
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.gson.Gson
-import org.apache.atlas.AtlasClientV2
+import org.apache.atlas.{ApplicationProperties, AtlasClientV2}
+import org.apache.atlas.hook.AtlasHook
 import org.apache.atlas.model.instance.AtlasEntity
 import org.apache.atlas.model.instance.AtlasEntity.AtlasEntitiesWithExtInfo
+import org.apache.atlas.model.notification.HookNotification
+import org.apache.atlas.model.notification.HookNotification.EntityCreateRequestV2
 import org.apache.commons.lang3.StringUtils
+import org.apache.hadoop.security.UserGroupInformation
 import org.apache.hadoop.util.ShutdownHookManager
+
+import scala.jdk.CollectionConverters.seqAsJavaListConverter
 
 import org.apache.kyuubi.plugin.lineage.dispatcher.atlas.AtlasClientConf._
 
@@ -64,10 +70,33 @@ class ConsoleAtlasClient() extends AtlasClient {
 
   override def send(entities: Seq[AtlasEntity]): Unit = {
     print("Atlas lineage events: \n")
-    entities.foreach(item => {
-      print(new Gson().toJson(item))
-      print()
-    })
+    val entitiesWithExtInfo = new AtlasEntitiesWithExtInfo()
+    entities.foreach(entitiesWithExtInfo.addEntity)
+
+    val createRequest = new EntityCreateRequestV2(
+      UserGroupInformation.getCurrentUser.getUserName, entitiesWithExtInfo): HookNotification
+
+    print(new Gson().toJson(createRequest))
+
+  }
+
+  override def close(): Unit = {
+
+  }
+}
+
+class KafkaAtlasClient(conf: AtlasClientConf) extends AtlasHook with AtlasClient {
+
+  override def getMessageSource: String = "spark"
+
+  override def send(entities: Seq[AtlasEntity]): Unit = {
+    ApplicationProperties.set(conf.getConfig())
+
+    val entitiesWithExtInfo = new AtlasEntitiesWithExtInfo()
+    entities.foreach(entitiesWithExtInfo.addEntity)
+    val createRequest = new EntityCreateRequestV2(
+      UserGroupInformation.getCurrentUser.getUserName, entitiesWithExtInfo): HookNotification
+    notifyEntities(Seq(createRequest).asJava, UserGroupInformation.getCurrentUser)
   }
 
   override def close(): Unit = {
@@ -87,6 +116,7 @@ object AtlasClient {
           client = clientConf.get(CLIENT_TYPE).toLowerCase(Locale.ROOT) match {
             case "rest" => new AtlasRestClient(clientConf)
             case "console" => new ConsoleAtlasClient()
+            case "kafka" => new KafkaAtlasClient(clientConf)
             case unknown => throw new RuntimeException(s"Unsupported client type: $unknown.")
           }
           registerCleanupShutdownHook(client)

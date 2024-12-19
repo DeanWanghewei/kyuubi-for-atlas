@@ -27,6 +27,8 @@ import org.apache.spark.kyuubi.lineage.SparkContextHelper
 
 class AtlasClientConf(configuration: Configuration) {
 
+  def getConfig(): Configuration = configuration
+
   def get(entry: ConfigEntry): String = {
     configuration.getProperty(entry.key) match {
       case s: String => s
@@ -51,7 +53,7 @@ object AtlasClientConf {
 
   val ATLAS_REST_ENDPOINT = ConfigEntry("atlas.rest.address", "http://localhost:21000")
 
-  val CLIENT_TYPE = ConfigEntry("atlas.client.type", "rest")
+  val CLIENT_TYPE = ConfigEntry("atlas.client.type", "kafka")
   val CLIENT_USERNAME = ConfigEntry("atlas.client.username", null)
   val CLIENT_PASSWORD = ConfigEntry("atlas.client.password", null)
 

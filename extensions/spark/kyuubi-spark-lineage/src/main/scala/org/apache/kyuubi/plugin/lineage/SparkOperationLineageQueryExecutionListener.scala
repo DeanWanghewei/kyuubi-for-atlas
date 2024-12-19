@@ -20,16 +20,19 @@ package org.apache.kyuubi.plugin.lineage
 import org.apache.spark.kyuubi.lineage.{LineageConf, SparkContextHelper}
 import org.apache.spark.sql.execution.QueryExecution
 import org.apache.spark.sql.util.QueryExecutionListener
+import org.slf4j.LoggerFactory
 
 import org.apache.kyuubi.plugin.lineage.helper.SparkSQLLineageParseHelper
 
 class SparkOperationLineageQueryExecutionListener extends QueryExecutionListener {
+  val logger = LoggerFactory.getLogger(this.getClass)
 
   private lazy val dispatchers: Seq[LineageDispatcher] = {
     SparkContextHelper.getConf(LineageConf.DISPATCHERS).map(LineageDispatcher(_))
   }
 
   override def onSuccess(funcName: String, qe: QueryExecution, durationNs: Long): Unit = {
+    logger.info("listener receive ")
     val lineage =
       SparkSQLLineageParseHelper(qe.sparkSession).transformToLineage(qe.id, qe.analyzed)
     dispatchers.foreach(_.send(qe, lineage))
